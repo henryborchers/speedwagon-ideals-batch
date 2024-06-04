@@ -1,0 +1,2 @@
+[speedwagon.plugins]
+myworkflows = idealsbatchingest.hook

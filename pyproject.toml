@@ -1,0 +1,9 @@
+[project]
+name = "idealsbatchingest"
+version = "0.1.0"
+dependencies = [
+    "speedwagon==0.4.0b4"
+]
+
+[project.entry-points.'speedwagon.plugins']
+myworkflows = 'idealsbatchingest.hook'

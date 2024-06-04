@@ -1,0 +1,11 @@
+pyproject.toml
+idealsbatchingest/__init__.py
+idealsbatchingest/hook.py
+idealsbatchingest/workflows.py
+idealsbatchingest.egg-info/PKG-INFO
+idealsbatchingest.egg-info/SOURCES.txt
+idealsbatchingest.egg-info/dependency_links.txt
+idealsbatchingest.egg-info/entry_points.txt
+idealsbatchingest.egg-info/requires.txt
+idealsbatchingest.egg-info/top_level.txt
+tests/test_subtasks.py
