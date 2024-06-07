@@ -206,11 +206,7 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
 
     @classmethod
     def generate_report(cls, results: List[Result], **user_args) -> Optional[str]:
-
-
         """
-
-
         Args: results: index of all the results from all of the tasks accessed by index number **user_args: the
         initial user input, e.g.  the csv file , the files directory the output director and validate?
 
@@ -435,99 +431,6 @@ class MapMetadata(speedwagon.tasks.Subtask):
         self.set_results(self.mappings)
         return self.mappings.requirements_met()  # returning false doesn't seem to have an effect
 
-
-class AbsMetadataValidator(abc.ABC):
-
-    def __init__(self, validator_name):
-        self.validator_name = validator_name
-        self.error_message = f"Value failed {validator_name} validation"
-        self.success_message = f"Value passed the {validator_name} validation"
-
-    # method: Callable[[str], bool]
-    def valid(self, value: str) -> bool:
-        raise NotImplementedError
-
-    def validate_collection(self, values):
-        error_store = {}
-        index = 0
-        for value in values:
-            if self.valid(value) is True:
-                pass
-            else:
-                error_store[index] = value
-            index += 1
-        return
-
-    def required_func(self):
-        raise NotImplementedError
-
-
-class FileExistsValidator(AbsMetadataValidator):
-    """Check to make sure filename exists in expected location"""
-
-    def __init__(self, validator_name, files_dir):
-        super().__init__(validator_name)
-        self.files_dir = files_dir
-
-    def valid(self, value: str) -> bool:
-        if os.path.isfile(value):
-            return True
-        else:
-            print(self.error_message)
-            return False
-
-
-class DateValidator(AbsMetadataValidator):
-    pass
-
-
-class RequiredValueValidator(AbsMetadataValidator):
-
-    def valid(self, value: str) -> bool:
-        pass
-
-
-class AbsMetadata(abc.ABC):
-    """An abstract class for describing metadata objects and evaluating metadata values against those descriptions
-
-      Values are valid if they pass any "or" validators. Metadata without "or" validators must pass all "and"
-      validators. Must have at least one "and" validator.
-
-    """
-    schema = ""
-
-    def __init__(self, name: str, description: str, and_validators: List[AbsMetadataValidator], **kwargs):
-        self.name = name
-        self.description = description
-        self.validators = {"and": {validator.validator_name: validator for validator in and_validators}}
-        if 'or_validators' in kwargs:
-            self.validators["or"] = {validator.validator_name: validator for validator in kwargs['or_validators']}
-
-    def valid(self, value):
-        """Pass through for validator's validation method"""
-
-        if "or" in self.validators.keys():
-            for validator in self.validators["or"]:
-                if validator.valid('value'):
-                    # TODO: add validator.success_message to the log
-                    return True
-        for validator in self.validators["and"]:
-            if validator.valid('value') is False:
-                print(validator.error_message)
-                return False
-
-        return True
-
-
-class Manifest:
-    """A collection of Metadata objects and metadata values
-
-    """
-    directory = []
-
-    pass
-
-
 class BuildDirectory(speedwagon.tasks.Subtask):
 
     def __init__(self, output_dir, files_dir,
@@ -572,8 +475,8 @@ class CreateManifest(speedwagon.tasks.Subtask):  # can just be a function and re
         df = pd.read_csv(self.metadata_file)
         df = df[list(self.user_mappings.values())]
         df.rename(columns=input_to_ideals_map, inplace=True)
-        # errors.append("some error")
-        location = self.output_dir + "temp_output_ideals_batch_manifest"
+        errors.append("some error")
+        location = self.output_dir + "/batch_manifest.csv"
         print(location)
         df.to_csv(location, index=False)
         self.set_results(
