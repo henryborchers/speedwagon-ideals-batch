@@ -140,7 +140,7 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
             validate_metadata
         ]
 
-    def discover_task_metadata(self, initial_results: List[Any], additional_data: Dict[str, Any], **user_args) -> List[
+    def discover_task_metadata(self, initial_results: List[Any], additional_data: Dict[str, Any], user_args) -> List[
         dict]:
         """
 
@@ -166,13 +166,13 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
     def initial_task(  # noqa: B027
             self,
             task_builder: TaskBuilder,
-            **user_args
+            user_args
     ) -> None:
         csv_file = user_args['CSV metadata file']
         # input_metadata = ['dc:title', 'dc:identifier:uri', 'dc:random']
 
         task_builder.add_subtask(MapMetadata(csv_file))
-        super().initial_task(task_builder, **user_args)
+        super().initial_task(task_builder, user_args)
 
     def get_additional_info(self, user_request_factory: UserRequestFactory, options: dict,
                             pretask_results: list) -> dict:
@@ -194,8 +194,8 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
         print(user_confirmed_mappings)
         return user_confirmed_mappings
 
-    def create_new_task(self, task_builder: TaskBuilder, **job_args) -> None:
-        super().create_new_task(task_builder, **job_args)
+    def create_new_task(self, task_builder: TaskBuilder, job_args) -> None:
+        super().create_new_task(task_builder, job_args)
 
         manifest = CreateManifest(user_mappings=job_args["user_mappings"], metadata_file=job_args["metadata_file"],
                                   output_dir=job_args["output_dir"])
@@ -205,7 +205,7 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
         task_builder.add_subtask(manifest)
 
     @classmethod
-    def generate_report(cls, results: List[Result], **user_args) -> Optional[str]:
+    def generate_report(cls, results: List[Result], user_args) -> Optional[str]:
         """
         Args: results: index of all the results from all of the tasks accessed by index number **user_args: the
         initial user input, e.g.  the csv file , the files directory the output director and validate?
