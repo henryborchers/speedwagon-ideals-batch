@@ -2,7 +2,8 @@
 name = "idealsbatchingest"
 version = "0.1.0"
 dependencies = [
-    "speedwagon==0.4.0b4"
+    "speedwagon==0.4.0b6",
+    "pandas"
 ]
 
 [project.entry-points.'speedwagon.plugins']
