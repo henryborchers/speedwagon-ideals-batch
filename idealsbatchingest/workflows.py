@@ -7,6 +7,10 @@ by the IDEALS batch ingest system.
 A confirmation screen asks users to verify or update mappings from provided
 csv headings to established metadata vales for the IDEALS ingest process.
 
+Class naming conventions: Subtasks are named for the actions they do as verbs
+(e.g., CreateX) and helper classes as named for what they do as nouns (e.g.
+XMaker).
+
   Typical usage example:
 
   Input: csv file with file metadata and a directory with data files
@@ -18,7 +22,7 @@ import copy
 import csv
 import os
 import shutil
-from typing import List, Any, Dict, Sequence, Generic, Optional, Final, Callable
+from typing import List, Any, Dict, Sequence, Generic, Optional, Final, Callable, Mapping
 
 import speedwagon
 import speedwagon.workflow
@@ -111,14 +115,13 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
     # TODO: Make some better comments for the description that helps the user know what this is all about
 
     def job_options(self) -> List[speedwagon.workflow.AbsOutputOptionDataType]:
-
         validate_metadata = speedwagon.workflow.BooleanSelect("Disable Validation?")
         # validation.default_value = True # Doesn't seem to do anything
         validate_metadata.value = True
 
         csv_file = speedwagon.workflow.FileSelectData("CSV metadata file")
 
-        #add contional so that both errors aren't triggered if the first fails
+        # add contional so that both errors aren't triggered if the first fails
         csv_file.add_validation(speedwagon.validators.ExistsOnFileSystem())
         csv_file.add_validation(speedwagon.validators.IsFile())
 
@@ -130,8 +133,7 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
         output_dir.add_validation(speedwagon.validators.ExistsOnFileSystem())
         output_dir.add_validation(speedwagon.validators.IsDirectory())
 
-
-        #TODO: add filter file if we really want to enforce csv
+        # TODO: add filter file if we really want to enforce csv
 
         return [
             csv_file,
@@ -141,7 +143,7 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
         ]
 
     def discover_task_metadata(self, initial_results: List[Any], additional_data: Dict[str, Any], user_args) -> List[
-        dict]:
+            dict]:
         """
 
         Args:
@@ -169,13 +171,12 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
             user_args
     ) -> None:
         csv_file = user_args['CSV metadata file']
-        # input_metadata = ['dc:title', 'dc:identifier:uri', 'dc:random']
 
         task_builder.add_subtask(MapMetadata(csv_file))
         super().initial_task(task_builder, user_args)
 
     def get_additional_info(self, user_request_factory: UserRequestFactory, options: dict,
-                            pretask_results: list) -> dict:
+                            pretask_results: list) -> Mapping[str, Any]:
         def process_data(
                 return_data: List[Sequence[DataItem]]
         ) -> dict:
@@ -191,16 +192,13 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
         mappings_editor.title = "Metadata Map"
         mappings_editor.column_names = ["IDEALS Metadata", "Input Metadata (from CSV file)"]
         user_confirmed_mappings = mappings_editor.get_user_response(options, pretask_results)
-        print(user_confirmed_mappings)
         return user_confirmed_mappings
 
     def create_new_task(self, task_builder: TaskBuilder, job_args) -> None:
         super().create_new_task(task_builder, job_args)
 
         manifest = CreateManifest(user_mappings=job_args["user_mappings"], metadata_file=job_args["metadata_file"],
-                                  output_dir=job_args["output_dir"])
-
-        # directory = BuildDirectory(files_dir=job_args["files_dir"], output_dir=job_args["output_dir"])
+                                  output_dir=job_args["output_dir"], files_dir=job_args['files_dir'])
 
         task_builder.add_subtask(manifest)
 
@@ -216,9 +214,6 @@ class BatchIngesterWorkflow(speedwagon.Workflow):
 
         return """Some information about what happened and any validation errors
         """
-
-
-
 
 
 def get_csv_headers(csv_file) -> list[str]:
@@ -303,7 +298,7 @@ class IdealsMetadataRepresentation:
             self.optional = self.optional + optional
 
 
-class Mapping:
+class MappingsBuilder:
     """Creates a mapping representation between input metadata fields and expected metadata fields. Accepts an optional
     IdealsMetadataRepresentation class input for expected metadata fields.
 
@@ -409,7 +404,7 @@ class MapMetadata(speedwagon.tasks.Subtask):
 
       Attributes:
           input_metadata: should be the headers from the user's input csv
-          mappings: a Mapping object with mappings from the user's input csv
+          mappings: a MappingsBuilder object with mappings from the user's input csv
 
       Examples:
           mapping_task.work() # performs the mapping and
@@ -418,7 +413,7 @@ class MapMetadata(speedwagon.tasks.Subtask):
     def __init__(self, csv_file) -> None:
         super().__init__()
         self.input_metadata = get_csv_headers(csv_file)
-        self.mappings = Mapping(self.input_metadata)
+        self.mappings = MappingsBuilder(self.input_metadata)
 
     def work(self) -> bool:
         """Sets the mapping object as class _result attribute
@@ -427,11 +422,11 @@ class MapMetadata(speedwagon.tasks.Subtask):
 
         """
         self.mappings.map()
-
         self.set_results(self.mappings)
         return self.mappings.requirements_met()  # returning false doesn't seem to have an effect
 
-class BuildDirectory(speedwagon.tasks.Subtask):
+
+class DirectoryBuilder:
 
     def __init__(self, output_dir, files_dir,
                  manifest):  # manifest will be a Manifest object in the validation workflow, for now a dataframe
@@ -441,53 +436,61 @@ class BuildDirectory(speedwagon.tasks.Subtask):
         self.files_dir = files_dir
         self.manifest = manifest
 
-    def work(self) -> bool:
-        # iterate over the manifest and for each row copy the file from the files_dir to output_dir/item{i}/file and
-        # copy the license to output_dir/item{i}/license.txt
+    def build(self) -> bool:
+        for index, row in self.manifest.iterrows():
+            input_file = self.files_dir + '/' + row["files"]
+            output_file = f"{self.output_dir}/item{index}/{row['files']}"
+            output_subdir = f"{self.output_dir}/item{index}"
+            os.makedirs(output_subdir, exist_ok=True)
 
-        for index, row in self.manifest:
-            input_file = self.files_dir + row["file"]
-            output_file = f"{self.files_dir}/item{index}/{input_file}"
+            with open(output_file, mode="a"):
+                pass
             shutil.copyfile(input_file, output_file)
 
             file_license = row["license"]
-
-            with open(f"{self.files_dir}/item{index}/license.txt", "w") as out_file:
+            with open(f"{self.output_dir}/item{index}/license.txt", "w+") as out_file:
                 out_file.write(file_license)
-
-
 
         return True
 
 
-class CreateManifest(speedwagon.tasks.Subtask):  # can just be a function and return a Manifest object to BuildDirectory
+class CreateManifest(speedwagon.tasks.Subtask):  # can just be a function and return a Manifest object to DirectoryBuilder
 
-    def __init__(self, user_mappings, metadata_file, output_dir):
+    def __init__(self, user_mappings, metadata_file, output_dir, files_dir):
         super().__init__()
         self.user_mappings = user_mappings
         self.metadata_file = metadata_file
         self.output_dir = output_dir
+        self.files_dir = files_dir
+        self.mappings = []
 
-    def work(self) -> bool:
+    def get_mappings(self):
+        return self.mappings
 
-        errors = []
+    def set_mappings(self):
         input_to_ideals_map = {value: key for key, value in self.user_mappings.items()}
         df = pd.read_csv(self.metadata_file)
         df = df[list(self.user_mappings.values())]
         df.rename(columns=input_to_ideals_map, inplace=True)
-        errors.append("some error")
+        self.mappings = df
+
+    def work(self) -> bool:
+        # errors = []
+        # errors.append("some error")
+        self.set_mappings()
+        df = self.mappings
+        directory_builder = DirectoryBuilder(output_dir=self.output_dir, files_dir=self.files_dir, manifest=self.mappings)
+        directory_builder.build()
         location = self.output_dir + "/batch_manifest.csv"
-        print(location)
         df.to_csv(location, index=False)
         self.set_results(
             {
                 "location": location,
-                "validation_errors": errors
+                # "validation_errors": errors
+                "mappings": df
             }
         )
 
         return True
-
-
 
     # self.log is the logging inside any of the Subtasks, makes most sense inside of work
