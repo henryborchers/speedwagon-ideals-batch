@@ -2,7 +2,7 @@
 name = "idealsbatchingest"
 version = "0.1.0"
 dependencies = [
-    "speedwagon==0.4.0b7",
+    "speedwagon==0.4.0b8",
     "pandas"
 ]
 

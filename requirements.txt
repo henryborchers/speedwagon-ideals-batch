@@ -1,1 +1,1 @@
-speedwagon[qt]==0.4.0b7
+speedwagon[qt]==0.4.0b8
