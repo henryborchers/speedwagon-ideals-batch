@@ -1,0 +1,39 @@
+name: Windows Installer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_msi_installer:
+    name: Create .msi installer
+    runs-on: windows-2019
+    steps:
+      - name: Install WiX Toolkit
+        run: nuget.exe install WiX -Version 3.11.2 -ExcludeVersion -OutputDirectory .
+      - name: Get Packaging Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: UIUCLibrary/speedwagon_scripts
+          path: deployment-scripts
+          ref: main
+      - name: Check out source code
+        uses: actions/checkout@v4
+        with:
+          path: scm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - name: Build Wheel
+        run: |
+          python -m pip install build
+          python -m build scm --wheel --outdir .\dist
+      - name: Creating installer package
+        env:
+          PIP_EXTRA_INDEX_URL: https://nexus.library.illinois.edu/repository/uiuc_prescon_python/simple
+        run: deployment-scripts\make_standalone.bat --base-python-path "py -3.11" "$((Get-ChildItem -path .\dist\*.whl)[0])" -r scm/requirements.txt --app-name "Speedwagon-ideals-batch"
+      - name: Archive Installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows installer
+          path: |
+            dist/*.msi
